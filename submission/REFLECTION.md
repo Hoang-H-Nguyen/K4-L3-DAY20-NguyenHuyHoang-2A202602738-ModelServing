@@ -6,10 +6,10 @@
 >
 > `make verify` sẽ fail nếu còn placeholder chưa điền. Đó là cố ý.
 
-**Họ Tên:** _<Họ Tên>_
-**MSSV:** _<MSSV>_
-**Cohort:** _<A20-K1 / A20-K2 / ...>_
-**Ngày submit:** _<YYYY-MM-DD>_
+**Họ Tên:** Nguyen Huy Hoang
+**MSSV:** 2A202602738
+**Cohort:** A20-K4
+**Ngày submit:** 2026-10-06
 
 ---
 
@@ -17,23 +17,26 @@
 
 > Từ `make probe`. Paste output hoặc điền tay.
 
-- **OS:** _<macOS 14 / Windows 11 / Ubuntu 24.04 / ...>_
-- **CPU:** _<Apple M2 / Intel i7-12700H / AMD Ryzen 7 5800H>_
-- **Cores:** _<physical / logical>_
-- **CPU extensions:** _<AVX2 / AVX-512 / NEON / —>_
-- **RAM:** _<GB>_
-- **Accelerator:** _<NVIDIA RTX 4060 / Apple Metal / Vulkan / CPU only>_
-- **llama.cpp asset đã tải:** _<vd: llama-b10488-bin-macos-arm64.tar.gz>_
-- **Model đã dùng:** _<Gemma 4 E2B / Qwen3.5 0.8B>_ (`LAB_MODEL=`_<gemma4-e2b / qwen35-0.8b>_)
-- **Quantization:** _<primary>_ + _<compare>_ (từ `models/active.json`)
+- **OS:** Linux x86_64 (kernel 7.0.0-34-generic)
+- **CPU:** 12th Gen Intel(R) Core(TM) i5-12500H
+- **Cores:** 12 physical / 16 logical
+- **CPU extensions:** AVX2
+- **RAM:** 15.3 GB
+- **Accelerator:** NVIDIA GeForce RTX 3050 Laptop GPU (4 GB), CUDA available
+- **llama.cpp asset đã tải:** `llama-b10488-bin-ubuntu-vulkan-x64.tar.gz`
+- **Model đã dùng:** Qwen3.5 0.8B (`LAB_MODEL=qwen35-0.8b`)
+- **Quantization:** Q4_K_M + UD-Q2_K_XL (từ `models/active.json`)
 
-**Chạy ở đâu:** _<laptop của tôi / Colab / Kaggle>_
+**Chạy ở đâu:** laptop của tôi (local Linux)
 _(Nếu dùng cloud fallback: nói rõ vì sao — RAM < 8 GB, setup fail, v.v. Không mất điểm.)_
 
 **Setup story** (≤ 80 chữ): điều gì cần thay đổi để lab chạy trên máy bạn? Có bước
 nào fail rồi phải workaround không?
 
-_Answer here._
+Setup chạy local với runtime llama.cpp b10488 và model Qwen3.5 0.8B. Cổng 8080
+đã bị chiếm nên server/load/pipeline dùng cổng 8090 qua `LAB_SERVER_PORT=8090`;
+không cần cloud fallback. Một số lệnh bind socket cần quyền mạng của môi trường
+chạy, nhưng benchmark và smoke test đều hoàn tất.
 
 ---
 
@@ -43,14 +46,14 @@ _Answer here._
 
 | Quantization | Size (GB) | Load (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode (tok/s) |
 |---|--:|--:|--:|--:|--:|--:|
-| UD-Q4_K_XL | | | | | | |
-| UD-Q2_K_XL | | | | | | |
+| Q4_K_M | 0.50 | 4110 | 69 / 80 | 7.0 / 7.4 | 507 / 549 / 549 | 143.3 |
+| UD-Q2_K_XL | 0.39 | 3064 | 72 / 79 | 7.7 / 8.3 | 559 / 600 / 600 | 129.8 |
 
 **Quan sát** (≤ 60 chữ): 2-bit nhanh hơn bao nhiêu, và **có đáng không**? Bạn đã thử
 hỏi cùng một câu trên cả hai (`make serve` vs `.venv/bin/python labs/02-serve/serve.py --compare`)
 chưa? Chất lượng khác nhau thế nào?
 
-_Answer here._
+2-bit nhỏ hơn 0.11 GB (22%) nhưng chậm hơn 9.4%: 129.8 so với 143.3 tok/s. Tôi đã hỏi cùng một câu trên cả hai model; chất lượng gần như tương đương. Vì vậy Q2 phù hợp khi thiếu RAM/dung lượng, còn Q4 đáng dùng hơn nếu ưu tiên tốc độ.
 
 ---
 
@@ -60,22 +63,26 @@ _Answer here._
 
 | Users | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Eff. concurrency | Failures |
 |--:|--:|--:|--:|--:|--:|--:|
-| 10 | | | | | | |
-| 50 | | | | | | |
+| 10 | 2.02 | 2200 | 21000 | 26000 | 8.2 | 0.0% |
+| 50 | 3.45 | 13000 | 15000 | 15000 | 41.0 | 0.0% |
 
-- **Offered load tăng 5×, throughput thực tăng:** _<X.XX>×_
-- **P95 tăng:** _<X.XX>×_
-- **Effective concurrency ở 50 users:** _<số>_ so với `--parallel` = _<số>_ slots
+- **Offered load tăng 5×, throughput thực tăng:** **1.71×**
+- **P95 tăng:** **0.71×** (21,000 ms → 15,000 ms)
+- **Effective concurrency ở 50 users:** **41.0** so với `--parallel` = **4** slots
 
 **Peak `llamacpp:n_busy_slots_per_decode`** (từ `make metrics` khi `make load-50` đang
-chạy): _<số>_ / _<slots>_ slots
+chạy): **3.97 / 4 slots**
 
 **Saturation reading** (≤ 80 chữ): server của bạn bão hoà ở đâu, và **bằng chứng nào**
 thuyết phục bạn? Nếu P95 tăng nhanh hơn RPS thì phần latency thêm đó là queue time hay
 compute time — bạn biết bằng cách nào? Nếu bạn phải nâng goodput@SLO, bạn sẽ đổi knob
 nào **trước**, và vì sao knob đó?
 
-_Answer here._
+Server đã bão hòa ở tải 50 users: throughput chỉ tăng 1.71× khi tải tăng 5×,
+trong khi `requests_processing=4`, `n_busy_slots_per_decode=3.97/4` và
+`requests_deferred` đạt 45. Các request dư phải xếp hàng. Để tăng goodput@SLO,
+tôi sẽ tối ưu số thread/CPU trước, vì decode đang chiếm đủ 4 slots; tăng thêm
+parallel khi bandwidth đã bão hòa có thể chỉ làm queue dài hơn.
 
 ---
 
@@ -85,23 +92,27 @@ _Answer here._
 
 | Day | Piece | Real hay stub? |
 |---|---|---|
-| N16 Cloud/IaC | | |
-| N17 Data pipeline | | |
-| N18 Lakehouse | | |
-| N19 Vector + features | | |
+| N16 Cloud/IaC | stub | No cloud/IaC implementation in this lab repo |
+| N17 Data pipeline | stub | No external data pipeline connected |
+| N18 Lakehouse | stub | No lakehouse backend connected |
+| N19 Vector + features | stub | Keyword-overlap fallback, no vector index |
 | N20 Serving | `llama-server` | real |
 
 **Latency split** (mean của 3 query, từ output của `pipeline.py`):
 
-- embed: _<ms>_
-- retrieve: _<ms>_
-- llm: _<ms>_
-- **stage chiếm nhiều nhất:** _<stage>_ (_<%>_ của total)
+- embed: **0.0 ms**
+- retrieve: **0.0 ms**
+- llm: **3621.1 ms**
+- **stage chiếm nhiều nhất:** **llm** (**100%** của total)
 
 **Reflection** (≤ 60 chữ): bottleneck ở đâu? Có khớp với kỳ vọng của bạn không? Nếu
 phải giảm latency của pipeline này 2×, bạn sẽ tấn công vào đâu?
 
-_Answer here._
+Pipeline dùng toy corpus và keyword-overlap fallback nên embed/retrieve đều 0 ms;
+LLM chiếm gần như toàn bộ latency (3621.1 ms trên 3621.2 ms), đúng như kỳ vọng
+trên CPU. Nếu cần giảm 2×, tôi sẽ tối ưu LLM trước bằng cách giảm output-token
+budget và tuning thread/CPU; tối ưu retrieval không tạo khác biệt đáng kể ở
+baseline này.
 
 ---
 
@@ -111,12 +122,12 @@ _Answer here._
 > một before/after thật (`benchmarks/01-tuning-tg128.md`). Đổi quantization,
 > `LAB_N_CTX`, hay `--parallel` rồi đo lại cũng được.
 
-**Change:** _<vd: hạ -t từ 16 xuống 8; vd: đổi sang UD-Q2_K_XL; vd: --parallel 4 → 8>_
+**Change:** giảm số thread decode từ 12 xuống 6
 
 ```
-before:  <số + đơn vị>
-after:   <số + đơn vị>
-speedup: <X.Y>×
+before:  28.6 tok/s (-t 12)
+after:   30.1 tok/s (-t 6)
+speedup: 1.05×
 ```
 
 **Tại sao nó work** (1–2 đoạn — đây là phần grader đọc kỹ nhất):
@@ -126,7 +137,12 @@ memory bandwidth? vector width? cache residency? scheduling? queueing? Nếu k�
 **khác** với kỳ vọng từ deck — nói rõ, và giải thích vì sao. Grader thưởng điểm cho
 lập luận đúng về một kết quả bất ngờ, hơn là một con số đẹp không được giải thích._
 
-_Answer here._
+Knee nằm ở khoảng 6 threads: throughput đạt 30.1 tok/s, cao hơn mức mặc định
+12 threads (28.6 tok/s). Khi tăng lên 16 và 32 threads, throughput giảm còn
+22.9 và 17.8 tok/s. Vì decode chủ yếu bị giới hạn bởi memory bandwidth, các
+thread bổ sung tranh cùng băng thông và thêm chi phí scheduling/cache contention
+thay vì tạo thêm công việc hữu ích. Do đó dùng toàn bộ logical cores làm máy
+chậm hơn; mức 6 threads là điểm cân bằng tốt nhất trong sweep này.
 
 ---
 
@@ -135,14 +151,14 @@ _Answer here._
 > Bỏ trống nếu không làm. Xem `docs/bonus/README.md`. Đừng làm hết — **một** finding sâu
 > ăn điểm hơn năm bảng nông.
 
-**Đã làm:** _<B1 build-compare / B2 sweep nào / B4 challenge nào / B5 lựa chọn nào>_
+**Đã làm:** Không làm bonus; chỉ hoàn thành các track bắt buộc §1–§5.
 
 **Numbers:**
 
 ```
-before:  <số>
-after:   <số>
-speedup: <X.Y>×
+before:  không áp dụng
+after:   không áp dụng
+speedup: không áp dụng
 ```
 
 **Điều này nói lên gì mà deck chưa nói:**
@@ -185,4 +201,7 @@ xem được → 0 điểm.
 
 ## 9. Khai báo sử dụng AI  *(xem `docs/RULES.md` §3)*
 
-_(Công cụ nào, dùng vào việc gì. Ghi "Không dùng" nếu không dùng.)_
+Đã dùng ChatGPT/Codex để đọc hướng dẫn, debug lệnh và hỗ trợ điền báo cáo từ
+các số liệu do benchmark, load test và pipeline tạo ra. Không dùng AI để bịa
+số liệu hoặc tạo screenshot giả; mọi con số trong báo cáo lấy từ các lần chạy
+trên phần cứng được khai báo ở §1.
